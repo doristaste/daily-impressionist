@@ -10,7 +10,8 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: #111;
+  /* Warm museum-wall linen — visible around paintings that don't fill the screen */
+  background: #e8ddd0;
   font-family: 'Cormorant Garamond', Georgia, serif;
   color: #fff;
 }
@@ -19,9 +20,12 @@ body {
 .bg {
   position: fixed;
   inset: 0;
-  background-size: cover;
+  /* contain = entire painting always visible, never cropped */
+  background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
+  /* Museum-wall linen shows in the margins around the painting */
+  background-color: #e8ddd0;
   opacity: 0;
   transition: opacity 1.4s ease;
 }
@@ -31,14 +35,19 @@ body {
   opacity: 1;
 }
 
-/* Soft gradient: bottom + right edge for card legibility */
+/* Subtle dark vignette only in the bottom-right corner
+   where the info card lives — keeps white text legible
+   without darkening the painting or the wall area */
 .bg::after {
   content: '';
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(to top,  rgba(0,0,0,0.60) 0%, transparent 50%),
-    linear-gradient(to left, rgba(0,0,0,0.40) 0%, transparent 55%);
+  background: radial-gradient(
+    ellipse 60% 50% at 100% 100%,
+    rgba(0, 0, 0, 0.45) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
 }
 
 /* ─── Loading indicator ──────────────────────────────────────── */
@@ -56,7 +65,7 @@ body {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(100, 85, 70, 0.5);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
@@ -76,9 +85,11 @@ body {
   max-width: 320px;
   text-align: right;
 
-  /* No background or blur — text sits directly over the gradient */
-  /* Subtle shadow keeps it legible on any painting */
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+  /* Text sits over the corner vignette — shadow ensures legibility
+     on both light wall areas and the edge of any painting */
+  text-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.70),
+    0 2px 16px rgba(0, 0, 0, 0.40);
 
   /* Enter animation */
   opacity: 0;
