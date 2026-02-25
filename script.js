@@ -106,8 +106,7 @@ function applyGalleryBackground(imgEl) {
     if (count === 0) return; // fully achromatic painting — keep default
 
     const [h] = rgbToHsl(rSum / count, gSum / count, bSum / count);
-    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    document.documentElement.style.setProperty('--bg-color', hslToHex(h, 0.17, dark ? 0.13 : 0.93));
+    document.documentElement.style.setProperty('--bg-color', hslToHex(h, 0.17, 0.13));
   } catch {
     // Color extraction failed — keep default background, never break painting display
   }
