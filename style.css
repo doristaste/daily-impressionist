@@ -1,3 +1,8 @@
+/* ─── Theme ──────────────────────────────────────────────────── */
+:root {
+  --bg-color: #e8ddd0; /* default warm linen; overwritten dynamically per painting */
+}
+
 /* ─── Reset ──────────────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -10,8 +15,7 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  /* Warm museum-wall linen — visible around paintings that don't fill the screen */
-  background: #e8ddd0;
+  background-color: var(--bg-color);
   font-family: 'Cormorant Garamond', Georgia, serif;
   color: #fff;
 }
@@ -24,8 +28,7 @@ body {
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
-  /* Museum-wall linen shows in the margins around the painting */
-  background-color: #e8ddd0;
+  background-color: var(--bg-color);
   opacity: 0;
   transition: opacity 1.4s ease;
 }

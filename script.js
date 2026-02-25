@@ -54,6 +54,68 @@ function inImpressionistEra(raw) {
 }
 
 
+// ─── Gallery Background ───────────────────────────────────────────────────────
+
+// Converts RGB (0–255 each) to HSL (0–1 each).
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h;
+  switch (max) {
+    case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+    case g: h = ((b - r) / d + 2) / 6; break;
+    default: h = ((r - g) / d + 4) / 6;
+  }
+  return [h, s, l];
+}
+
+// Converts HSL (0–1 each) to a CSS hex string.
+function hslToHex(h, s, l) {
+  const f = (n) => {
+    const k = (n + h * 12) % 12;
+    const v = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(v * 255).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+// Downsamples the image onto an 80×80 canvas, averages the chromatic pixels
+// (skipping near-white, near-black, and near-grey), and sets --bg-color to a
+// desaturated gallery-neutral tint of the dominant hue.
+function applyGalleryBackground(imgEl) {
+  const SIZE = 80;
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(imgEl, 0, 0, SIZE, SIZE);
+
+  let data;
+  try {
+    data = ctx.getImageData(0, 0, SIZE, SIZE).data;
+  } catch {
+    return; // cross-origin canvas tainted — keep default
+  }
+
+  let rSum = 0, gSum = 0, bSum = 0, count = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const [, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+    if (s < 0.12 || l > 0.90 || l < 0.10) continue; // skip achromatic pixels
+    rSum += data[i]; gSum += data[i + 1]; bSum += data[i + 2]; count++;
+  }
+  if (count === 0) return; // fully achromatic painting — keep default
+
+  const [h] = rgbToHsl(rSum / count, gSum / count, bSum / count);
+  const dark  = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  // Desaturate to ~17%, set lightness for a subtle gallery-wall tint
+  document.documentElement.style.setProperty('--bg-color', hslToHex(h, 0.17, dark ? 0.13 : 0.93));
+}
+
+
 // ─── Cache Utilities ──────────────────────────────────────────────────────────
 
 // Fetches an image URL and returns it as a base64 data URL for local storage.
@@ -279,6 +341,7 @@ function renderArtwork(artwork) {
   const img = new Image();
 
   img.onload = () => {
+    applyGalleryBackground(img);
     bg.style.backgroundImage = `url('${imgSrc}')`;
     bg.classList.add('loaded');
 
