@@ -1,19 +1,26 @@
+// ─── Fallback ─────────────────────────────────────────────────────────────────
+// Shown if all three APIs fail. A guaranteed public-domain Monet from AIC.
+
+const FALLBACK = {
+  title:    'Water Lilies',
+  artist:   'Claude Monet',
+  year:     '1906',
+  imageUrl: 'https://www.artic.edu/iiif/2/3c27b499-af56-f0d5-93b5-a7f2f1ad5813/full/1686,/0/default.jpg',
+  source:   'Art Institute of Chicago',
+};
+
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
 // A fresh artwork is fetched on every new tab open
 window.addEventListener('DOMContentLoaded', async () => {
   const artwork = await fetchRandomArtwork();
-  if (artwork) {
-    renderArtwork(artwork);
-  } else {
-    showError();
-  }
+  renderArtwork(artwork ?? FALLBACK);
 });
 
 // ─── Fetch orchestrator ───────────────────────────────────────────────────────
 
 async function fetchRandomArtwork() {
-  // Shuffle the three museum sources and try each in turn
+  // Shuffle sources and try each in turn until one succeeds
   const sources = ['met', 'aic', 'vam'].sort(() => Math.random() - 0.5);
 
   for (const source of sources) {
@@ -27,7 +34,7 @@ async function fetchRandomArtwork() {
       console.warn(`[Daily Impressionist] ${source} failed:`, err);
     }
   }
-  return null; // all sources exhausted
+  return null; // triggers FALLBACK
 }
 
 // ─── Museum APIs ──────────────────────────────────────────────────────────────
@@ -35,32 +42,37 @@ async function fetchRandomArtwork() {
 /**
  * The Metropolitan Museum of Art (New York)
  * API docs: https://metmuseum.github.io — no key required
- * We search department 11 (European Paintings) for "impressionist" works.
+ *
+ * Step 1: search `q=impressionism` in department 11 (European Paintings)
+ *         with `hasImages=true` to get a list of matching objectIDs.
+ * Step 2: pick one at random and fetch its full record for the image URL.
+ * This two-step pattern is the correct way to use the Met API.
  */
 async function fetchFromMet() {
-  const res  = await fetch(
+  // Step 1 — get matching object IDs
+  const searchRes = await fetch(
     'https://collectionapi.metmuseum.org/public/collection/v1/search' +
-    '?q=impressionist&hasImages=true&departmentId=11'
+    '?q=impressionism&hasImages=true&departmentId=11'
   );
-  const { objectIDs } = await res.json();
+  const { objectIDs } = await searchRes.json();
   if (!objectIDs?.length) return null;
 
-  // Try up to 6 random picks until we land on one with an image URL
+  // Step 2 — try up to 6 random picks until one has a valid image URL
   for (let i = 0; i < 6; i++) {
     const id     = objectIDs[Math.floor(Math.random() * objectIDs.length)];
     const objRes = await fetch(
       `https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`
     );
-    const obj = await objRes.json();
+    const obj      = await objRes.json();
     const imageUrl = obj.primaryImageSmall || obj.primaryImage;
     if (!imageUrl) continue;
 
     return {
-      title:    obj.title            || 'Untitled',
-      artist:   obj.artistDisplayName || 'Unknown Artist',
-      year:     obj.objectDate        || '',
+      title:  obj.title             || 'Untitled',
+      artist: obj.artistDisplayName || 'Unknown Artist',
+      year:   obj.objectDate        || '',
       imageUrl,
-      source:   'The Metropolitan Museum of Art',
+      source: 'The Metropolitan Museum of Art',
     };
   }
   return null;
@@ -69,26 +81,33 @@ async function fetchFromMet() {
 /**
  * Art Institute of Chicago
  * API docs: https://api.artic.edu/docs — no key required
- * Picks a random page of impressionist results to maximise variety.
+ *
+ * Searches `q=impressionism` and also requests the `style_title` field,
+ * then filters client-side to records explicitly tagged "Impressionism".
+ * This double check (keyword + style tag) ensures only genuine works pass.
  */
 async function fetchFromAIC() {
-  const page = Math.floor(Math.random() * 15) + 1; // pages 1–15
-  const res  = await fetch(
+  const page = Math.floor(Math.random() * 20) + 1;
+
+  const res = await fetch(
     'https://api.artic.edu/api/v1/artworks/search' +
-    `?q=impressionist&fields=id,title,artist_display,date_display,image_id&limit=20&page=${page}`
+    `?q=impressionism&fields=id,title,artist_display,date_display,image_id,style_title` +
+    `&limit=50&page=${page}`
   );
   const { data } = await res.json();
 
-  // Filter to records that have an image
-  const withImages = (data || []).filter(a => a.image_id);
-  if (!withImages.length) return null;
+  // Only keep records with a confirmed Impressionism style tag and a valid image
+  const verified = (data || []).filter(
+    a => a.image_id && a.style_title?.toLowerCase().includes('impressioni')
+  );
 
-  const art = withImages[Math.floor(Math.random() * withImages.length)];
+  if (!verified.length) return null;
+
+  const art = verified[Math.floor(Math.random() * verified.length)];
   return {
     title:    art.title          || 'Untitled',
     artist:   art.artist_display || 'Unknown Artist',
     year:     art.date_display   || '',
-    // IIIF image URL — 1686 px wide is a good full-screen size
     imageUrl: `https://www.artic.edu/iiif/2/${art.image_id}/full/1686,/0/default.jpg`,
     source:   'Art Institute of Chicago',
   };
@@ -97,11 +116,15 @@ async function fetchFromAIC() {
 /**
  * Victoria and Albert Museum (London)
  * API docs: https://developers.vam.ac.uk — no key required
- * Searches for impressionism works that have images.
+ *
+ * Searches `q=impressionism` with `images_exist=1` to restrict to works
+ * that have at least one photograph. Results are filtered to those with
+ * a usable thumbnail URL before a random pick is made.
  */
 async function fetchFromVAM() {
-  const res     = await fetch(
-    'https://api.vam.ac.uk/v2/objects/search?q=impressionism&images_exist=1&page_size=50'
+  const res = await fetch(
+    'https://api.vam.ac.uk/v2/objects/search' +
+    '?q=impressionism&images_exist=1&page_size=50'
   );
   const { records } = await res.json();
 
@@ -109,16 +132,16 @@ async function fetchFromVAM() {
   if (!withImages.length) return null;
 
   const record   = withImages[Math.floor(Math.random() * withImages.length)];
-  // Upgrade the thumbnail URL to a larger image using the V&A IIIF endpoint
+  // Upgrade thumbnail to a larger image via V&A's IIIF endpoint
   const imageUrl = record._images._primary_thumbnail.replace(
     /\/full\/![^/]+\//,
     '/full/!1200,1200/'
   );
 
   return {
-    title:    record._primaryTitle        || 'Untitled',
-    artist:   record._primaryMaker?.name  || 'Unknown Artist',
-    year:     record._primaryDate         || '',
+    title:    record._primaryTitle       || 'Untitled',
+    artist:   record._primaryMaker?.name || 'Unknown Artist',
+    year:     record._primaryDate        || '',
     imageUrl,
     source:   'Victoria and Albert Museum',
   };
@@ -130,29 +153,31 @@ function renderArtwork(artwork) {
   const bg   = document.getElementById('bg');
   const card = document.getElementById('info-card');
 
-  // Preload the image before revealing it (avoids flash of empty background)
-  const img  = new Image();
+  // Preload image before revealing — avoids flash of empty background
+  const img = new Image();
 
   img.onload = () => {
-    // Set background and fade everything in
-    bg.style.backgroundImage = `url('${CSS.escape ? artwork.imageUrl : artwork.imageUrl}')`;
+    bg.style.backgroundImage = `url('${artwork.imageUrl}')`;
     bg.classList.add('loaded');
 
-    // Populate the info card
     document.getElementById('artwork-title').textContent  = artwork.title;
     document.getElementById('artwork-artist').textContent = artwork.artist;
     document.getElementById('artwork-year').textContent   = artwork.year;
     document.getElementById('artwork-source').textContent = artwork.source;
 
-    // Hide loader, reveal card
     document.getElementById('loader').classList.add('hidden');
     card.classList.remove('hidden');
-    // Small rAF delay so the CSS transition fires correctly after display change
+    // rAF ensures the transition fires after display:block takes effect
     requestAnimationFrame(() => card.classList.add('visible'));
   };
 
   img.onerror = () => {
-    showError();
+    // If even the fallback image fails, show the error state
+    if (artwork === FALLBACK) {
+      showError();
+    } else {
+      renderArtwork(FALLBACK);
+    }
   };
 
   img.src = artwork.imageUrl;
