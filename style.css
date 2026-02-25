@@ -1,0 +1,147 @@
+/* ─── Reset ──────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ─── Base ───────────────────────────────────────────────────── */
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #111;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  color: #fff;
+}
+
+/* ─── Full-screen painting background ───────────────────────── */
+.bg {
+  position: fixed;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 1.4s ease;
+}
+
+/* Fade in once the image is ready */
+.bg.loaded {
+  opacity: 1;
+}
+
+/* Soft gradient: bottom + right edge for card legibility */
+.bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top,  rgba(0,0,0,0.60) 0%, transparent 50%),
+    linear-gradient(to left, rgba(0,0,0,0.40) 0%, transparent 55%);
+}
+
+/* ─── Loading indicator ──────────────────────────────────────── */
+.loader {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.loader-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.loader-dot:nth-child(2) { animation-delay: 0.22s; }
+.loader-dot:nth-child(3) { animation-delay: 0.44s; }
+
+@keyframes pulse {
+  0%, 80%, 100% { transform: scale(0.75); opacity: 0.35; }
+  40%           { transform: scale(1.25); opacity: 1;    }
+}
+
+/* ─── Info card — no background, bottom-right, compact ──────── */
+.info-card {
+  position: fixed;
+  bottom: 40px;
+  right: 48px;
+  max-width: 320px;
+  text-align: right;
+
+  /* No background or blur — text sits directly over the gradient */
+  /* Subtle shadow keeps it legible on any painting */
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+
+  /* Enter animation */
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.9s ease 0.4s, transform 0.9s ease 0.4s;
+}
+
+.info-card.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Artwork title — italic, refined */
+.artwork-title {
+  font-size: 1.3rem;
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.3;
+  margin-bottom: 6px;
+  letter-spacing: 0.01em;
+}
+
+/* Artist — spaced uppercase, compact */
+.artwork-artist {
+  font-size: 0.72rem;
+  font-weight: 300;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  margin-bottom: 2px;
+}
+
+/* Year — inline with artist, very light */
+.artwork-year {
+  font-size: 0.72rem;
+  font-weight: 300;
+  opacity: 0.55;
+  margin-bottom: 10px;
+}
+
+/* Museum credit — hairline, minimal */
+.artwork-source {
+  font-size: 0.62rem;
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.38;
+}
+
+/* ─── Error message ──────────────────────────────────────────── */
+.error-msg {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+/* ─── Utility ────────────────────────────────────────────────── */
+.hidden {
+  display: none !important;
+}

@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Daily Impressionist",
+  "version": "1.0",
+  "description": "Replace your new tab with a random Impressionist masterpiece from world-class museums.",
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  },
+  "host_permissions": [
+    "https://collectionapi.metmuseum.org/*",
+    "https://api.artic.edu/*",
+    "https://www.artic.edu/*",
+    "https://api.vam.ac.uk/*",
+    "https://framemark.vam.ac.uk/*"
+  ]
+}
