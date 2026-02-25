@@ -9,6 +9,7 @@
   "permissions": ["storage", "unlimitedStorage"],
   "host_permissions": [
     "https://collectionapi.metmuseum.org/*",
+    "https://images.metmuseum.org/*",
     "https://api.artic.edu/*",
     "https://www.artic.edu/*",
     "https://api.vam.ac.uk/*",

@@ -87,32 +87,30 @@ function hslToHex(h, s, l) {
 // (skipping near-white, near-black, and near-grey), and sets --bg-color to a
 // desaturated gallery-neutral tint of the dominant hue.
 function applyGalleryBackground(imgEl) {
-  const SIZE = 80;
-  const canvas = document.createElement('canvas');
-  canvas.width = SIZE;
-  canvas.height = SIZE;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(imgEl, 0, 0, SIZE, SIZE);
-
-  let data;
   try {
-    data = ctx.getImageData(0, 0, SIZE, SIZE).data;
+    const SIZE = 80;
+    const canvas = document.createElement('canvas');
+    canvas.width  = SIZE;
+    canvas.height = SIZE;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(imgEl, 0, 0, SIZE, SIZE);
+    const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
+
+    let rSum = 0, gSum = 0, bSum = 0, count = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const [, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+      if (s < 0.12 || l > 0.90 || l < 0.10) continue; // skip achromatic pixels
+      rSum += data[i]; gSum += data[i + 1]; bSum += data[i + 2]; count++;
+    }
+    if (count === 0) return; // fully achromatic painting — keep default
+
+    const [h] = rgbToHsl(rSum / count, gSum / count, bSum / count);
+    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.style.setProperty('--bg-color', hslToHex(h, 0.17, dark ? 0.13 : 0.93));
   } catch {
-    return; // cross-origin canvas tainted — keep default
+    // Color extraction failed — keep default background, never break painting display
   }
-
-  let rSum = 0, gSum = 0, bSum = 0, count = 0;
-  for (let i = 0; i < data.length; i += 4) {
-    const [, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
-    if (s < 0.12 || l > 0.90 || l < 0.10) continue; // skip achromatic pixels
-    rSum += data[i]; gSum += data[i + 1]; bSum += data[i + 2]; count++;
-  }
-  if (count === 0) return; // fully achromatic painting — keep default
-
-  const [h] = rgbToHsl(rSum / count, gSum / count, bSum / count);
-  const dark  = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  // Desaturate to ~17%, set lightness for a subtle gallery-wall tint
-  document.documentElement.style.setProperty('--bg-color', hslToHex(h, 0.17, dark ? 0.13 : 0.93));
 }
 
 
@@ -152,9 +150,10 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   if (ready?.dataUrl) {
     // ── Cache hit: paint instantly from local storage ──────────────────────
+    // Remove the entry immediately so the next tab never shows the same painting.
+    chrome.storage.local.remove('ready');
     renderArtwork(ready);
-    // Immediately start fetching the next painting in the background.
-    // By the time the user opens the next tab it will already be ready.
+    // Fetch + cache the next painting in the background for the tab after this one.
     prefetchAndCache();
   } else {
     // ── First-ever load: show loader, fetch, display, then warm the cache ──
