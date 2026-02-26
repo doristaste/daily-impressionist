@@ -219,6 +219,17 @@ body {
   color: rgba(255, 255, 255, 0.92);
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Company name (HK stocks) — looser, no all-caps */
+.stock-ticker.company-name {
+  font-size: 0.70rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 
 .stock-price {

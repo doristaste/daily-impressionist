@@ -83,7 +83,8 @@ function parseYahooV8(ticker, json) {
   const timestamp = meta.regularMarketTime
     ? new Date(meta.regularMarketTime * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : null;
-  return { ticker, price, change, timestamp };
+  const shortName = meta.shortName || meta.longName || null;
+  return { ticker, price, change, timestamp, shortName };
 }
 
 
@@ -202,6 +203,44 @@ test('parseYahooV8 — missing/error response', () => {
     'error response → null');
   assert(parseYahooV8('NVDA', { chart: { result: [{ meta: {} }] } }) === null,
     'missing price → null');
+});
+
+test('parseYahooV8 — shortName extraction', () => {
+  const json = {
+    chart: {
+      result: [{ meta: {
+        regularMarketPrice: 375.4, chartPreviousClose: 370.0,
+        regularMarketTime: 1700000000, shortName: 'TENCENT',
+      }}], error: null,
+    }
+  };
+  const result = parseYahooV8('0700.HK', json);
+  assert(result.shortName === 'TENCENT',       'shortName extracted');
+});
+
+test('parseYahooV8 — falls back to longName', () => {
+  const json = {
+    chart: {
+      result: [{ meta: {
+        regularMarketPrice: 100, chartPreviousClose: 98,
+        regularMarketTime: 1700000000, longName: 'HSBC Holdings plc',
+      }}], error: null,
+    }
+  };
+  const result = parseYahooV8('0005.HK', json);
+  assert(result.shortName === 'HSBC Holdings plc', 'longName used as fallback');
+});
+
+test('parseYahooV8 — no name → null', () => {
+  const json = {
+    chart: {
+      result: [{ meta: {
+        regularMarketPrice: 150, chartPreviousClose: 145, regularMarketTime: 1700000000,
+      }}], error: null,
+    }
+  };
+  const result = parseYahooV8('AAPL', json);
+  assert(result.shortName === null, 'shortName null when absent');
 });
 
 test('parseYahooV8 — no prevClose (new listing)', () => {

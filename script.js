@@ -411,7 +411,9 @@ async function fetchViaYahoo(ticker) {
     ? new Date(meta.regularMarketTime * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : null;
 
-  return { ticker, price, change, timestamp };
+  // shortName is used to show company name for HK tickers in the widget
+  const shortName = meta.shortName || meta.longName || null;
+  return { ticker, price, change, timestamp, shortName };
 }
 
 async function fetchViaPolygon(ticker) {
@@ -503,6 +505,13 @@ function upsertCard(ticker, data) {
 
   const priceEl  = card.querySelector('.stock-price');
   const changeEl = card.querySelector('.stock-change');
+
+  // HK tickers: replace the numeric code with the company name once we have it
+  if (data?.shortName && isHKTicker(ticker)) {
+    const tickerEl = card.querySelector('.stock-ticker');
+    tickerEl.textContent = data.shortName;
+    tickerEl.classList.add('company-name');
+  }
 
   if (!data) {
     priceEl.textContent  = '—';
