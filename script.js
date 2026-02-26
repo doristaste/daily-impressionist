@@ -54,63 +54,32 @@ function inImpressionistEra(raw) {
 }
 
 
-// ─── Gallery Background ───────────────────────────────────────────────────────
+// ─── Nippon Colors Palette ────────────────────────────────────────────────────
+// 20 low-saturation traditional Japanese colors used as gallery wall tints.
+// Source: nipponcolors.com — all deep/muted to let the artwork speak.
 
-// Converts RGB (0–255 each) to HSL (0–1 each).
-function rgbToHsl(r, g, b) {
-  r /= 255; g /= 255; b /= 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  if (max === min) return [0, 0, l];
-  const d = max - min;
-  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  let h;
-  switch (max) {
-    case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-    case g: h = ((b - r) / d + 2) / 6; break;
-    default: h = ((r - g) / d + 4) / 6;
-  }
-  return [h, s, l];
-}
-
-// Converts HSL (0–1 each) to a CSS hex string.
-function hslToHex(h, s, l) {
-  const f = (n) => {
-    const k = (n + h * 12) % 12;
-    const v = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
-    return Math.round(v * 255).toString(16).padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
-
-// Downsamples the image onto an 80×80 canvas, averages the chromatic pixels
-// (skipping near-white, near-black, and near-grey), and sets --bg-color to a
-// desaturated gallery-neutral tint of the dominant hue.
-function applyGalleryBackground(imgEl) {
-  try {
-    const SIZE = 80;
-    const canvas = document.createElement('canvas');
-    canvas.width  = SIZE;
-    canvas.height = SIZE;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(imgEl, 0, 0, SIZE, SIZE);
-    const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
-
-    let rSum = 0, gSum = 0, bSum = 0, count = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      const [, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
-      if (s < 0.12 || l > 0.90 || l < 0.10) continue; // skip achromatic pixels
-      rSum += data[i]; gSum += data[i + 1]; bSum += data[i + 2]; count++;
-    }
-    if (count === 0) return; // fully achromatic painting — keep default
-
-    const [h] = rgbToHsl(rSum / count, gSum / count, bSum / count);
-    document.documentElement.style.setProperty('--bg-color', hslToHex(h, 0.17, 0.13));
-  } catch {
-    // Color extraction failed — keep default background, never break painting display
-  }
-}
+const NIPPON_COLORS = [
+  '#1C1C1C', // 墨      Sumi          (ink)
+  '#2A2420', // 黒橡    Kurotsurubami (dark oak)
+  '#3B2F28', // 焦茶    Kogecha       (burnt umber)
+  '#4A3C34', // 煤竹    Susutake      (smoked bamboo)
+  '#5C4D45', // 煤色    Susuiro       (soot)
+  '#6B5B52', // 胡桃    Kurumi        (walnut)
+  '#7A6C63', // 鈍色    Nibiiro       (dull grey)
+  '#877870', // 丁子鼠  Chojiinezumi  (clove grey)
+  '#8C8278', // 利休鼠  Rikyunezumi   (tea-ceremony grey)
+  '#9B9490', // 薄墨    Usuzumi       (pale ink)
+  '#6E7C78', // 錆鼠    Sabinezumi    (rust grey)
+  '#7A8A82', // 青鈍    Aonibi        (indigo dull)
+  '#6C7870', // 千歳緑  Chitosemidori (deep pine)
+  '#857D7D', // 梅鼠    Umenezumi     (plum grey)
+  '#8A7F88', // 紫鼠    Murasakinezumi(purple grey)
+  '#7B7368', // 鉄色    Tetsuiro      (iron)
+  '#7C6E5A', // 黄枯茶  Kikogecha     (yellow-brown)
+  '#6A6058', // 江戸鼠  Edonezumi     (Edo grey)
+  '#5A5248', // 消炭色  Keshisumiiro  (charcoal ash)
+  '#483E38', // 黒茶    Kurocha       (black tea)
+];
 
 
 // ─── Cache Utilities ──────────────────────────────────────────────────────────
@@ -145,6 +114,9 @@ async function prefetchAndCache() {
 // ─── Entry Point — Cache-First ────────────────────────────────────────────────
 
 window.addEventListener('DOMContentLoaded', async () => {
+  // Set a random Nippon gallery tint immediately — before anything else loads.
+  document.documentElement.style.setProperty('--bg-color', pickRandom(NIPPON_COLORS));
+
   const { ready } = await chrome.storage.local.get('ready');
 
   if (ready?.dataUrl) {
@@ -339,7 +311,6 @@ function renderArtwork(artwork) {
   const img = new Image();
 
   img.onload = () => {
-    applyGalleryBackground(img);
     bg.style.backgroundImage = `url('${imgSrc}')`;
     bg.classList.add('loaded');
 
