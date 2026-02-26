@@ -584,42 +584,62 @@ function getCaretBlock() {
   return (node instanceof HTMLElement && node !== editor) ? node : null;
 }
 
-// On Space: if the whole block is a markdown prefix, consume it and apply style
-function handleSpaceKey(e) {
+// Called from 'input' event after Space has already been inserted by the browser.
+// If the block text (trimmed) is exactly a markdown prefix, convert it.
+function tryConvertMarkdown() {
   const block = getCaretBlock();
   if (!block || block.classList.contains('note-todo')) return;
+  // Skip blocks already carrying a markdown class (already converted)
+  if (['note-h1','note-h2','note-h3','note-h4','note-bullet']
+        .some(c => block.classList.contains(c))) return;
 
-  // .trim() because some browsers leave a trailing \n from a placeholder <br>
-  const text = block.textContent.trim();
+  const raw     = block.textContent;
+  const trimmed = raw.trim();
 
-  // /todo + Space → immediate checkbox (no text yet)
-  if (/^\/todo$/i.test(text)) {
-    e.preventDefault();
+  // Only act when the last inserted character was a Space
+  if (!raw.endsWith(' ') && !raw.endsWith('\u00A0')) return;
+
+  // /todo + Space → immediate checkbox, no "todo" text visible
+  if (/^\/todo$/i.test(trimmed)) {
     convertToTodo(block);
-    debouncedSaveNote();
     return;
   }
 
   // Heading / bullet prefix + Space → styled empty block
   let cls = null;
-  if      (text === '####') cls = 'note-h4';
-  else if (text === '###')  cls = 'note-h3';
-  else if (text === '##')   cls = 'note-h2';
-  else if (text === '#')    cls = 'note-h1';
-  else if (text === '-')    cls = 'note-bullet';
+  if      (trimmed === '####') cls = 'note-h4';
+  else if (trimmed === '###')  cls = 'note-h3';
+  else if (trimmed === '##')   cls = 'note-h2';
+  else if (trimmed === '#')    cls = 'note-h1';
+  else if (trimmed === '-')    cls = 'note-bullet';
   if (!cls) return;
 
-  e.preventDefault();
   block.className = cls;
   block.innerHTML = '<br>';
-
-  // Place cursor at start of the now-empty styled block
   const range = document.createRange();
   range.setStart(block, 0);
   range.collapse(true);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
+  window.getSelection().removeAllRanges();
+  window.getSelection().addRange(range);
+}
+
+// Backspace on an empty markdown block → reset to plain body text
+function tryResetMarkdown(e) {
+  const block = getCaretBlock();
+  if (!block) return;
+  if (!['note-h1','note-h2','note-h3','note-h4','note-bullet']
+        .some(c => block.classList.contains(c))) return;
+  if (block.textContent.trim()) return; // still has content → normal backspace
+
+  e.preventDefault();
+  block.className = '';
+  block.innerHTML = '<br>';
+  const range = document.createRange();
+  range.setStart(block, 0);
+  range.collapse(true);
+  window.getSelection().removeAllRanges();
+  window.getSelection().addRange(range);
+  debouncedSaveNote();
 }
 
 function attachTodoListener(wrap) {
@@ -661,11 +681,16 @@ function initNoteEditor(editor) {
   // Seed block structure so line-level styling works from the first keystroke
   if (!editor.childElementCount) editor.innerHTML = '<div><br></div>';
 
-  editor.addEventListener('input', () => debouncedSaveNote());
+  // input fires AFTER the character is in the DOM — reliable for Space detection
+  editor.addEventListener('input', () => {
+    tryConvertMarkdown();
+    debouncedSaveNote();
+  });
 
   editor.addEventListener('keydown', e => {
-    if (e.key === ' ') {
-      handleSpaceKey(e);
+    // Backspace on empty markdown block → strip back to plain text
+    if (e.key === 'Backspace') {
+      tryResetMarkdown(e);
       return;
     }
     if (e.key !== 'Enter') return;
@@ -673,7 +698,7 @@ function initNoteEditor(editor) {
     const block = getCaretBlock();
     if (!block) return;
 
-    // /todo → create checkbox item
+    // /todo + Enter → checkbox (handles '/todo buy milk' + Enter too)
     if (/^\/todo(\s|$)/i.test(block.textContent.trim())) {
       e.preventDefault();
       convertToTodo(block);
@@ -682,8 +707,7 @@ function initNoteEditor(editor) {
     }
 
     // Heading → next line should be normal text (strip class after browser creates div)
-    if (block.classList.contains('note-h1') || block.classList.contains('note-h2') ||
-        block.classList.contains('note-h3') || block.classList.contains('note-h4')) {
+    if (['note-h1','note-h2','note-h3','note-h4'].some(c => block.classList.contains(c))) {
       setTimeout(() => {
         const newBlock = getCaretBlock();
         if (newBlock && newBlock !== block) {
