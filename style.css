@@ -345,7 +345,6 @@ body {
 /* ─── Note pad ───────────────────────────────────────────────── */
 .note-pad {
   /* width set by shared token */
-  position: relative;
   background: rgba(10, 10, 10, 0.63);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -354,24 +353,58 @@ body {
   overflow: hidden;
 }
 
-/* Close (×) button — top-right of the pad */
+/* Toolbar — always visible, holds − and × */
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 6px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.note-minimize,
 .note-close {
-  position: absolute;
-  top: 7px;
-  right: 10px;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.30);
-  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.28);
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 2px 5px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.note-minimize:hover,
+.note-close:hover {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* Note body — hidden when minimized */
+.note-body {
+  position: relative;
+}
+
+.note-pad.minimized .note-body {
+  display: none;
+}
+
+/* Erase button — bottom-right corner of editor area */
+.note-erase {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.18);
+  font-size: 0.68rem;
   line-height: 1;
   padding: 2px 4px;
   cursor: pointer;
   transition: color 0.15s ease;
-  z-index: 1;
 }
 
-.note-close:hover {
-  color: rgba(255, 255, 255, 0.70);
+.note-erase:hover {
+  color: rgba(255, 255, 255, 0.50);
 }
 
 .note-editor {
@@ -443,11 +476,12 @@ body {
   flex: 1;
 }
 
-/* Checked: strike + dim the entire row */
-.note-todo.note-done {
-  opacity: 0.42;
+/* Checked: gray + strike the text; dim the checkbox */
+.note-todo.note-done span {
+  color: rgba(255, 255, 255, 0.32);
+  text-decoration: line-through;
 }
 
-.note-todo.note-done span {
-  text-decoration: line-through;
+.note-todo.note-done input[type="checkbox"] {
+  opacity: 0.40;
 }

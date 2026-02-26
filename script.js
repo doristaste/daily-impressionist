@@ -627,19 +627,17 @@ function convertToTodo(block) {
   const cb   = document.createElement('input');
   cb.type    = 'checkbox';
   const span = document.createElement('span');
-  span.textContent = preText;
+  // createTextNode ensures an empty text node exists so cursor always lands in span
+  span.appendChild(document.createTextNode(preText));
   wrap.append(cb, span);
   attachTodoListener(wrap);
 
   block.replaceWith(wrap);
 
-  // Always land cursor inside the span so user types directly after the checkbox
+  // Cursor at end of any pre-existing text (or start of empty span)
   const range = document.createRange();
-  if (span.firstChild) {
-    range.setStart(span.firstChild, span.firstChild.length);
-  } else {
-    range.setStart(span, 0);
-  }
+  const textNode = span.firstChild;
+  range.setStart(textNode, textNode.length);
   range.collapse(true);
   const sel = window.getSelection();
   sel.removeAllRanges();
@@ -703,10 +701,27 @@ async function initWidget() {
   }
   initNoteEditor(editor);
 
-  // Note pad close button — hides the pad but keeps content in storage
+  // − Minimize button — collapse to toolbar only / expand back
+  const minimizeBtn = document.getElementById('note-minimize');
+  minimizeBtn.addEventListener('click', () => {
+    const isNowMinimized = notePad.classList.toggle('minimized');
+    minimizeBtn.textContent = isNowMinimized ? '+' : '−';
+  });
+
+  // × Close button — hides the pad AND clears content from storage
   document.getElementById('note-close').addEventListener('click', () => {
+    editor.innerHTML = '<div><br></div>';
+    chrome.storage.local.remove(NOTE_KEY);
     notePad.classList.add('hidden');
-    _saveNote();
+    notePad.classList.remove('minimized');
+    minimizeBtn.textContent = '−';
+  });
+
+  // ⌫ Erase button — clears content but keeps the pad open
+  document.getElementById('note-erase').addEventListener('click', () => {
+    editor.innerHTML = '<div><br></div>';
+    chrome.storage.local.remove(NOTE_KEY);
+    editor.focus();
   });
 
   // ── UI refs ───────────────────────────────────────────────────────────────
@@ -736,11 +751,13 @@ async function initWidget() {
     input.focus();
   });
 
-  // Menu: Note — show pad and focus editor
+  // Menu: Note — show/expand the pad and focus editor
   document.getElementById('menu-note').addEventListener('click', () => {
     addMenu.classList.add('hidden');
     addBtn.classList.remove('hidden');
     notePad.classList.remove('hidden');
+    notePad.classList.remove('minimized');
+    minimizeBtn.textContent = '−';
     editor.focus();
     // Place cursor at end of existing content
     const range = document.createRange();

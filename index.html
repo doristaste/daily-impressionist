@@ -41,13 +41,19 @@
   <div id="stock-panel" class="stock-panel">
     <div id="stock-list" class="stock-table"></div>
     <div id="note-pad" class="note-pad hidden">
-      <button id="note-close" class="note-close" aria-label="Close note">×</button>
-      <div
-        id="note-editor"
-        class="note-editor"
-        contenteditable="true"
-        spellcheck="false"
-      ></div>
+      <div class="note-toolbar">
+        <button id="note-minimize" class="note-minimize" aria-label="Minimize">−</button>
+        <button id="note-close"    class="note-close"    aria-label="Close">×</button>
+      </div>
+      <div id="note-body" class="note-body">
+        <div
+          id="note-editor"
+          class="note-editor"
+          contenteditable="true"
+          spellcheck="false"
+        ></div>
+        <button id="note-erase" class="note-erase" aria-label="Clear note">⌫</button>
+      </div>
     </div>
     <div id="stock-input-wrap" class="stock-input-wrap hidden">
       <input
