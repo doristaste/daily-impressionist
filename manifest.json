@@ -16,6 +16,8 @@
     "https://framemark.vam.ac.uk/*",
     "https://openaccess-api.clevelandart.org/*",
     "https://openaccess-cdn.clevelandart.org/*",
+    "https://query1.finance.yahoo.com/*",
+    "https://query2.finance.yahoo.com/*",
     "https://api.polygon.io/*",
     "https://yh-finance.p.rapidapi.com/*"
   ]

@@ -353,8 +353,7 @@ function showError() {
 //  Without keys the widget is still interactive but shows "—" for quotes.
 // =============================================================================
 
-const POLYGON_KEY  = window.EXTENSION_CONFIG?.POLYGON_KEY  ?? '';
-const RAPIDAPI_KEY = window.EXTENSION_CONFIG?.RAPIDAPI_KEY ?? '';
+const POLYGON_KEY = window.EXTENSION_CONFIG?.POLYGON_KEY ?? '';
 
 // ─── Storage key ──────────────────────────────────────────────────────────────
 
@@ -385,21 +384,42 @@ function normalizeTicker(raw) {
 }
 
 // ─── API calls ─────────────────────────────────────────────────────────────────
+// Primary: Yahoo Finance public API — free, no key, works for US + HK tickers.
+// Optional upgrade: Polygon.io (US) for real-time last-trade price.
 
-async function fetchUSStock(ticker) {
+async function fetchViaYahoo(ticker) {
+  // v8/finance/chart is more reliable than v7/finance/quote (no crumb/consent required)
+  const res  = await fetch(
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`
+  );
+  const json = await res.json();
+  const meta = json?.chart?.result?.[0]?.meta;
+  if (!meta) return null;
+
+  const price     = meta.regularMarketPrice;
+  const prevClose = meta.chartPreviousClose;
+  if (price == null) return null;
+
+  const change    = prevClose != null ? ((price - prevClose) / prevClose) * 100 : null;
+  const timestamp = meta.regularMarketTime
+    ? new Date(meta.regularMarketTime * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  return { ticker, price, change, timestamp };
+}
+
+async function fetchViaPolygon(ticker) {
   if (!POLYGON_KEY) return null;
 
   const [tradeRes, prevRes] = await Promise.all([
     fetch(`https://api.polygon.io/v2/last/trade/${ticker}?apiKey=${POLYGON_KEY}`),
     fetch(`https://api.polygon.io/v2/aggs/ticker/${ticker}/prev?adjusted=true&apiKey=${POLYGON_KEY}`),
   ]);
-
   const tradeJson = await tradeRes.json();
   const prevJson  = await prevRes.json();
 
   const price     = tradeJson?.results?.p;
   const prevClose = prevJson?.results?.[0]?.c;
-
   if (price == null) return null;
 
   const change    = prevClose != null ? ((price - prevClose) / prevClose) * 100 : null;
@@ -410,36 +430,15 @@ async function fetchUSStock(ticker) {
   return { ticker, price, change, timestamp };
 }
 
-async function fetchHKStock(ticker) {
-  if (!RAPIDAPI_KEY) return null;
-
-  const res = await fetch(
-    `https://yh-finance.p.rapidapi.com/market/v2/get-quotes?region=HK&symbols=${encodeURIComponent(ticker)}`,
-    {
-      headers: {
-        'x-rapidapi-host': 'yh-finance.p.rapidapi.com',
-        'x-rapidapi-key':  RAPIDAPI_KEY,
-      },
-    }
-  );
-  const json = await res.json();
-  const q    = json?.quoteResponse?.result?.[0];
-  if (!q) return null;
-
-  const price     = q.regularMarketPrice;
-  const change    = q.regularMarketChangePercent;
-  const timestamp = q.regularMarketTime
-    ? new Date(q.regularMarketTime * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : null;
-
-  return { ticker, price, change, timestamp };
-}
-
 async function fetchStockQuote(ticker) {
   try {
-    return isHKTicker(ticker)
-      ? await fetchHKStock(ticker)
-      : await fetchUSStock(ticker);
+    // US tickers: try Polygon first (real-time) then Yahoo as fallback
+    if (!isHKTicker(ticker) && POLYGON_KEY) {
+      const result = await fetchViaPolygon(ticker);
+      if (result) return result;
+    }
+    // Yahoo Finance works for both US and HK tickers
+    return await fetchViaYahoo(ticker);
   } catch {
     return null;
   }
@@ -501,7 +500,7 @@ function upsertCard(ticker, data) {
 
   if (!data) {
     priceEl.textContent  = '—';
-    changeEl.textContent = 'no key';
+    changeEl.textContent = '—';
     changeEl.className   = 'stock-change neutral';
     return;
   }
