@@ -161,18 +161,13 @@ body {
   display: none !important;
 }
 
-/* ─── Widget — width tokens ───────────────────────────────────── */
-/* note-pad, input and menu are fixed at 252px.
-   stock-table expands to fit company names (HK stocks). */
+/* ─── Widget — shared width ───────────────────────────────────── */
+/* Fixed at 252px so stock table, note pad, input and menu all match. */
+.stock-table:not(:empty),
 .note-pad,
 .stock-input-wrap,
 .add-menu {
   width: 252px;
-}
-
-.stock-table:not(:empty) {
-  min-width: 220px;
-  width: max-content;
 }
 
 /* ─── Stock widget — top-right ───────────────────────────────── */
@@ -197,8 +192,9 @@ body {
   overflow: hidden;
 }
 
-/* Each row — ticker flex-fills, price/change fixed-width */
+/* Each row — ticker flex-fills, price/change fixed-width, remove is absolute */
 .stock-row {
+  position: relative;
   display: flex;
   align-items: center;
   padding: 8px 14px;
@@ -221,8 +217,11 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.92);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: 4px;
 }
 
 /* Company name (HK stocks) — looser, no all-caps, Chinese serif fallback */
@@ -259,13 +258,17 @@ body {
 .stock-change.neutral  { color: rgba(255, 255, 255, 0.28); }
 
 .stock-remove {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   color: rgba(255, 255, 255, 0.75);
   cursor: pointer;
   font-size: 0.60rem;
   line-height: 1;
-  padding: 0;
+  padding: 2px;
   opacity: 0;
   transition: opacity 0.18s ease;
 }
