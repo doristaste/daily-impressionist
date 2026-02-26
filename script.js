@@ -690,13 +690,22 @@ function initNoteEditor(editor) {
   // Seed block structure so line-level styling works from the first keystroke
   if (!editor.childElementCount) editor.innerHTML = '<div><br></div>';
 
+  // Track IME composition (Chinese, Japanese, Korean input methods).
+  // During composition we must not intercept Space or Enter.
+  let _composing = false;
+  editor.addEventListener('compositionstart', () => { _composing = true;  });
+  editor.addEventListener('compositionend',   () => { _composing = false; });
+
   // input fires AFTER the character is in the DOM — reliable for Space detection
   editor.addEventListener('input', () => {
-    tryConvertMarkdown();
+    if (!_composing) tryConvertMarkdown();
     debouncedSaveNote();
   });
 
   editor.addEventListener('keydown', e => {
+    // Never intercept keys while IME is composing
+    if (e.isComposing || _composing) return;
+
     // Backspace on empty markdown block → strip back to plain text
     if (e.key === 'Backspace') {
       tryResetMarkdown(e);
@@ -707,7 +716,7 @@ function initNoteEditor(editor) {
     const block = getCaretBlock();
     if (!block) return;
 
-    // /todo + Enter → checkbox (handles '/todo buy milk' + Enter too)
+    // /todo + Enter → checkbox (handles '/todo 买牛奶' + Enter too)
     if (/^\/todo(\s|$)/i.test(block.textContent.trim())) {
       e.preventDefault();
       convertToTodo(block);
