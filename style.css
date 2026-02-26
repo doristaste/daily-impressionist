@@ -201,9 +201,9 @@ body {
 }
 
 .stock-ticker {
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: Georgia, serif;
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.92);
@@ -211,9 +211,9 @@ body {
 }
 
 .stock-price {
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: Georgia, serif;
   font-size: 0.84rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #ffffff;
   width: 66px;
   text-align: right;
@@ -221,9 +221,9 @@ body {
 }
 
 .stock-change {
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: Georgia, serif;
   font-size: 0.84rem;
-  font-weight: 600;
+  font-weight: 700;
   width: 58px;
   text-align: right;
   font-variant-numeric: tabular-nums;
