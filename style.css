@@ -201,7 +201,7 @@ body {
 }
 
 .stock-ticker {
-  font-family: Optima, 'Optima Nova', Candara, sans-serif;
+  font-family: Didot, 'GFS Didot', 'Bodoni MT', 'Playfair Display', serif;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -211,7 +211,7 @@ body {
 }
 
 .stock-price {
-  font-family: Optima, 'Optima Nova', Candara, sans-serif;
+  font-family: Didot, 'GFS Didot', 'Bodoni MT', 'Playfair Display', serif;
   font-size: 0.84rem;
   font-weight: 700;
   color: #ffffff;
@@ -221,7 +221,7 @@ body {
 }
 
 .stock-change {
-  font-family: Optima, 'Optima Nova', Candara, sans-serif;
+  font-family: Didot, 'GFS Didot', 'Bodoni MT', 'Playfair Display', serif;
   font-size: 0.84rem;
   font-weight: 700;
   width: 58px;
