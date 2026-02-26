@@ -584,14 +584,29 @@ function getCaretBlock() {
   return (node instanceof HTMLElement && node !== editor) ? node : null;
 }
 
-// Apply markdown-driven CSS class to a block div (no innerHTML change = no cursor jump)
-function applyBlockStyle(block) {
+// On Space: if the whole block is a markdown prefix, consume it and apply style
+function handleSpaceKey(e) {
+  const block = getCaretBlock();
   if (!block || block.classList.contains('note-todo')) return;
+
   const text = block.textContent;
-  block.classList.remove('note-h1', 'note-h2', 'note-bullet');
-  if      (text.startsWith('# '))  block.classList.add('note-h1');
-  else if (text.startsWith('## ')) block.classList.add('note-h2');
-  else if (text.startsWith('- '))  block.classList.add('note-bullet');
+  let cls = null;
+  if      (text === '#')  cls = 'note-h1';
+  else if (text === '##') cls = 'note-h2';
+  else if (text === '-')  cls = 'note-bullet';
+  if (!cls) return;
+
+  e.preventDefault();
+  block.className = cls;
+  block.innerHTML = '<br>';
+
+  // Place cursor at start of the now-empty styled block
+  const range = document.createRange();
+  range.setStart(block, 0);
+  range.collapse(true);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
 }
 
 function attachTodoListener(wrap) {
@@ -603,28 +618,28 @@ function attachTodoListener(wrap) {
   });
 }
 
-// Replace a /todo line with a checkbox element and move cursor to next line
+// Replace a /todo line with a checkbox; cursor lands inside the span for typing
 function convertToTodo(block) {
-  const text = block.textContent.replace(/^\/todo\s*/i, '').trim();
+  const preText = block.textContent.replace(/^\/todo\s*/i, '').trim();
 
   const wrap = document.createElement('div');
   wrap.className = 'note-todo';
   const cb   = document.createElement('input');
   cb.type    = 'checkbox';
   const span = document.createElement('span');
-  span.textContent = text;
+  span.textContent = preText;
   wrap.append(cb, span);
   attachTodoListener(wrap);
 
-  // Insert a fresh empty line after the todo
-  const next = document.createElement('div');
-  next.innerHTML = '<br>';
   block.replaceWith(wrap);
-  wrap.after(next);
 
-  // Move cursor to the new empty line
+  // Always land cursor inside the span so user types directly after the checkbox
   const range = document.createRange();
-  range.setStart(next, 0);
+  if (span.firstChild) {
+    range.setStart(span.firstChild, span.firstChild.length);
+  } else {
+    range.setStart(span, 0);
+  }
   range.collapse(true);
   const sel = window.getSelection();
   sel.removeAllRanges();
@@ -632,22 +647,37 @@ function convertToTodo(block) {
 }
 
 function initNoteEditor(editor) {
-  // Seed a block structure so line-level styling works from the first keystroke
+  // Seed block structure so line-level styling works from the first keystroke
   if (!editor.childElementCount) editor.innerHTML = '<div><br></div>';
 
-  editor.addEventListener('input', () => {
-    applyBlockStyle(getCaretBlock());
-    debouncedSaveNote();
-  });
+  editor.addEventListener('input', () => debouncedSaveNote());
 
   editor.addEventListener('keydown', e => {
+    if (e.key === ' ') {
+      handleSpaceKey(e);
+      return;
+    }
     if (e.key !== 'Enter') return;
+
     const block = getCaretBlock();
     if (!block) return;
+
+    // /todo → create checkbox item
     if (/^\/todo(\s|$)/i.test(block.textContent.trim())) {
       e.preventDefault();
       convertToTodo(block);
       debouncedSaveNote();
+      return;
+    }
+
+    // Heading → next line should be normal text (strip class after browser creates div)
+    if (block.classList.contains('note-h1') || block.classList.contains('note-h2')) {
+      setTimeout(() => {
+        const newBlock = getCaretBlock();
+        if (newBlock && newBlock !== block) {
+          newBlock.classList.remove('note-h1', 'note-h2');
+        }
+      }, 0);
     }
   });
 }
@@ -672,6 +702,12 @@ async function initWidget() {
     editor.querySelectorAll('.note-todo').forEach(attachTodoListener);
   }
   initNoteEditor(editor);
+
+  // Note pad close button — hides the pad but keeps content in storage
+  document.getElementById('note-close').addEventListener('click', () => {
+    notePad.classList.add('hidden');
+    _saveNote();
+  });
 
   // ── UI refs ───────────────────────────────────────────────────────────────
   const addBtn    = document.getElementById('stock-add-btn');

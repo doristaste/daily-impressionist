@@ -161,6 +161,16 @@ body {
   display: none !important;
 }
 
+/* ─── Widget — shared width token ────────────────────────────── */
+/* All widget elements (stock table, note pad, stock input, menu)
+   share the same 252px width so nothing looks misaligned.        */
+.stock-table:not(:empty),
+.note-pad,
+.stock-input-wrap,
+.add-menu {
+  width: 252px;
+}
+
 /* ─── Stock widget — top-right ───────────────────────────────── */
 .stock-panel {
   position: fixed;
@@ -183,12 +193,12 @@ body {
   overflow: hidden;
 }
 
-/* Each row — fixed column widths keep numbers aligned */
+/* Each row — ticker flex-fills, price/change fixed-width */
 .stock-row {
   display: flex;
   align-items: center;
   padding: 8px 14px;
-  gap: 14px;
+  gap: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -207,7 +217,8 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.92);
-  width: 68px;
+  flex: 1;
+  min-width: 0;
 }
 
 .stock-price {
@@ -269,7 +280,7 @@ body {
 
 /* Ticker input — matches table dark style */
 .stock-input-wrap {
-  width: 214px;
+  /* width set by shared token at top */
 }
 
 .stock-input {
@@ -305,7 +316,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 10px;
   overflow: hidden;
-  min-width: 110px;
+  /* width set by shared token */
 }
 
 .add-menu-item {
@@ -333,7 +344,8 @@ body {
 
 /* ─── Note pad ───────────────────────────────────────────────── */
 .note-pad {
-  width: 214px;
+  /* width set by shared token */
+  position: relative;
   background: rgba(10, 10, 10, 0.63);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -342,31 +354,55 @@ body {
   overflow: hidden;
 }
 
-.note-editor {
-  width: 100%;
-  min-height: 80px;
-  max-height: 300px;
-  overflow-y: auto;
-  padding: 10px 14px;
-  outline: none;
-  font-family: Didot, 'GFS Didot', 'Bodoni MT', 'Playfair Display', serif;
-  font-size: 0.84rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.88);
-  line-height: 1.65;
-  word-break: break-word;
-  caret-color: rgba(255, 255, 255, 0.7);
+/* Close (×) button — top-right of the pad */
+.note-close {
+  position: absolute;
+  top: 7px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.30);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  z-index: 1;
 }
 
-/* Block-level markdown styles */
+.note-close:hover {
+  color: rgba(255, 255, 255, 0.70);
+}
+
+.note-editor {
+  width: 100%;
+  min-height: 88px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 12px 16px 14px;
+  outline: none;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 2.1;
+  word-break: break-word;
+  caret-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Block-level markdown — prefix already stripped by JS */
 .note-editor .note-h1 {
-  font-size: 1.05rem;
+  font-size: 1.15rem;
+  font-weight: 600;
   color: #ffffff;
+  line-height: 1.6;
 }
 
 .note-editor .note-h2 {
-  font-size: 0.94rem;
-  color: rgba(255, 255, 255, 0.96);
+  font-size: 1.0rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.6;
 }
 
 .note-editor .note-bullet {
@@ -378,35 +414,40 @@ body {
   content: '·';
   position: absolute;
   left: 3px;
-  color: rgba(255, 255, 255, 0.50);
+  color: rgba(255, 255, 255, 0.45);
 }
 
-/* Todo item */
+/* Todo row */
 .note-todo {
   display: flex;
   align-items: baseline;
-  gap: 7px;
-  padding: 1px 0;
+  gap: 8px;
+  padding: 2px 0;
 }
 
 .note-todo input[type="checkbox"] {
   cursor: pointer;
   flex-shrink: 0;
-  accent-color: rgba(255, 255, 255, 0.65);
+  accent-color: rgba(255, 255, 255, 0.55);
   width: 12px;
   height: 12px;
+  margin-top: 3px;
 }
 
 .note-todo span {
-  font-family: Didot, 'GFS Didot', 'Bodoni MT', 'Playfair Display', serif;
-  font-size: 0.84rem;
-  font-weight: 700;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 400;
   color: rgba(255, 255, 255, 0.88);
-  line-height: 1.65;
+  line-height: 2.1;
   flex: 1;
+}
+
+/* Checked: strike + dim the entire row */
+.note-todo.note-done {
+  opacity: 0.42;
 }
 
 .note-todo.note-done span {
   text-decoration: line-through;
-  opacity: 0.38;
 }
