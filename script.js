@@ -461,7 +461,7 @@ function formatChange(change) {
 
 function buildStockCard(ticker) {
   const card = document.createElement('div');
-  card.className  = 'stock-card';
+  card.className  = 'stock-row';
   card.dataset.ticker = ticker;
 
   const tickerEl = document.createElement('span');
@@ -566,23 +566,29 @@ async function initStockWidget() {
   const inputWrap = document.getElementById('stock-input-wrap');
   const input    = document.getElementById('stock-input');
 
-  addBtn.addEventListener('click', () => {
-    inputWrap.classList.toggle('hidden');
-    if (!inputWrap.classList.contains('hidden')) {
-      input.value = '';
-      input.focus();
-    }
-  });
+  function openInput() {
+    addBtn.classList.add('hidden');
+    inputWrap.classList.remove('hidden');
+    input.value = '';
+    input.focus();
+  }
+
+  function closeInput() {
+    inputWrap.classList.add('hidden');
+    addBtn.classList.remove('hidden');
+  }
+
+  addBtn.addEventListener('click', openInput);
 
   // Submit on Enter
   input.addEventListener('keydown', async (e) => {
     if (e.key === 'Enter') {
       const raw = input.value.trim();
+      closeInput();
       if (raw) await addTicker(raw);
-      inputWrap.classList.add('hidden');
     }
     if (e.key === 'Escape') {
-      inputWrap.classList.add('hidden');
+      closeInput();
     }
   });
 
@@ -590,7 +596,7 @@ async function initStockWidget() {
   document.addEventListener('click', (e) => {
     const panel = document.getElementById('stock-panel');
     if (!panel.contains(e.target)) {
-      inputWrap.classList.add('hidden');
+      closeInput();
     }
   });
 }
