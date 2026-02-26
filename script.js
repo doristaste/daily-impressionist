@@ -38,6 +38,11 @@ const pickRandom = arr => arr[Math.floor(Math.random() * arr.length)];
 const pickArtist = ()  => pickRandom(IMPRESSIONISTS);
 const stripHtml  = s   => String(s ?? '').replace(/<[^>]*>/g, '').trim();
 
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
 // Returns true if the string contains any artist on the master list
 function matchesArtist(str) {
   const lower = stripHtml(str).toLowerCase();
@@ -117,8 +122,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Set a random Nippon gallery tint immediately — before anything else loads.
   document.documentElement.style.setProperty('--bg-color', pickRandom(NIPPON_COLORS));
 
-  // Boot the stock widget independently of the painting pipeline.
-  initStockWidget();
+  // Boot the widget (stock + note) independently of the painting pipeline.
+  initWidget();
 
   const { ready } = await chrome.storage.local.get('ready');
 
@@ -358,6 +363,7 @@ const POLYGON_KEY = window.EXTENSION_CONFIG?.POLYGON_KEY ?? '';
 // ─── Storage key ──────────────────────────────────────────────────────────────
 
 const STOCK_STORE_KEY = 'stockWidgets';
+const NOTE_KEY        = 'noteContent';
 
 async function loadSavedTickers() {
   const { stockWidgets } = await chrome.storage.local.get(STOCK_STORE_KEY);
@@ -548,55 +554,180 @@ async function refreshAllTickers() {
   }));
 }
 
-// ─── Init ──────────────────────────────────────────────────────────────────────
+// ─── Note helpers ──────────────────────────────────────────────────────────────
 
-async function initStockWidget() {
-  // Render saved tickers immediately (with placeholder prices)
-  const saved = await loadSavedTickers();
-  saved.forEach(t => upsertCard(t, null));
+async function loadNoteHtml() {
+  const { noteContent } = await chrome.storage.local.get(NOTE_KEY);
+  return noteContent || null;
+}
 
-  // Then fetch live quotes
-  if (saved.length) refreshAllTickers();
+async function _saveNote() {
+  const editor = document.getElementById('note-editor');
+  // Sync checkbox checked state → HTML attribute so innerHTML serialises correctly
+  editor.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    if (cb.checked) cb.setAttribute('checked', '');
+    else            cb.removeAttribute('checked');
+  });
+  await chrome.storage.local.set({ [NOTE_KEY]: editor.innerHTML });
+}
 
-  // Refresh every 60 s
+const debouncedSaveNote = debounce(_saveNote, 600);
+
+// Returns the block-level div the cursor is currently in
+function getCaretBlock() {
+  const sel = window.getSelection();
+  if (!sel?.rangeCount) return null;
+  let node = sel.getRangeAt(0).startContainer;
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+  const editor = document.getElementById('note-editor');
+  while (node && node.parentElement !== editor) node = node.parentElement;
+  return (node instanceof HTMLElement && node !== editor) ? node : null;
+}
+
+// Apply markdown-driven CSS class to a block div (no innerHTML change = no cursor jump)
+function applyBlockStyle(block) {
+  if (!block || block.classList.contains('note-todo')) return;
+  const text = block.textContent;
+  block.classList.remove('note-h1', 'note-h2', 'note-bullet');
+  if      (text.startsWith('# '))  block.classList.add('note-h1');
+  else if (text.startsWith('## ')) block.classList.add('note-h2');
+  else if (text.startsWith('- '))  block.classList.add('note-bullet');
+}
+
+function attachTodoListener(wrap) {
+  const cb = wrap.querySelector('input[type="checkbox"]');
+  if (!cb) return;
+  cb.addEventListener('change', () => {
+    wrap.classList.toggle('note-done', cb.checked);
+    debouncedSaveNote();
+  });
+}
+
+// Replace a /todo line with a checkbox element and move cursor to next line
+function convertToTodo(block) {
+  const text = block.textContent.replace(/^\/todo\s*/i, '').trim();
+
+  const wrap = document.createElement('div');
+  wrap.className = 'note-todo';
+  const cb   = document.createElement('input');
+  cb.type    = 'checkbox';
+  const span = document.createElement('span');
+  span.textContent = text;
+  wrap.append(cb, span);
+  attachTodoListener(wrap);
+
+  // Insert a fresh empty line after the todo
+  const next = document.createElement('div');
+  next.innerHTML = '<br>';
+  block.replaceWith(wrap);
+  wrap.after(next);
+
+  // Move cursor to the new empty line
+  const range = document.createRange();
+  range.setStart(next, 0);
+  range.collapse(true);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function initNoteEditor(editor) {
+  // Seed a block structure so line-level styling works from the first keystroke
+  if (!editor.childElementCount) editor.innerHTML = '<div><br></div>';
+
+  editor.addEventListener('input', () => {
+    applyBlockStyle(getCaretBlock());
+    debouncedSaveNote();
+  });
+
+  editor.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const block = getCaretBlock();
+    if (!block) return;
+    if (/^\/todo(\s|$)/i.test(block.textContent.trim())) {
+      e.preventDefault();
+      convertToTodo(block);
+      debouncedSaveNote();
+    }
+  });
+}
+
+// ─── Widget init (stock + note) ────────────────────────────────────────────────
+
+async function initWidget() {
+  // ── Stocks ────────────────────────────────────────────────────────────────
+  const savedTickers = await loadSavedTickers();
+  savedTickers.forEach(t => upsertCard(t, null));
+  if (savedTickers.length) refreshAllTickers();
   setInterval(refreshAllTickers, 60_000);
 
-  // "+" button toggles input
-  const addBtn   = document.getElementById('stock-add-btn');
-  const inputWrap = document.getElementById('stock-input-wrap');
-  const input    = document.getElementById('stock-input');
+  // ── Note ──────────────────────────────────────────────────────────────────
+  const notePad   = document.getElementById('note-pad');
+  const editor    = document.getElementById('note-editor');
+  const savedNote = await loadNoteHtml();
 
-  function openInput() {
-    addBtn.classList.add('hidden');
-    inputWrap.classList.remove('hidden');
-    input.value = '';
-    input.focus();
+  if (savedNote) {
+    editor.innerHTML = savedNote;
+    notePad.classList.remove('hidden');
+    editor.querySelectorAll('.note-todo').forEach(attachTodoListener);
   }
+  initNoteEditor(editor);
 
-  function closeInput() {
+  // ── UI refs ───────────────────────────────────────────────────────────────
+  const addBtn    = document.getElementById('stock-add-btn');
+  const addMenu   = document.getElementById('add-menu');
+  const inputWrap = document.getElementById('stock-input-wrap');
+  const input     = document.getElementById('stock-input');
+
+  function closeAll() {
+    addMenu.classList.add('hidden');
     inputWrap.classList.add('hidden');
     addBtn.classList.remove('hidden');
   }
 
-  addBtn.addEventListener('click', openInput);
-
-  // Submit on Enter
-  input.addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter') {
-      const raw = input.value.trim();
-      closeInput();
-      if (raw) await addTicker(raw);
-    }
-    if (e.key === 'Escape') {
-      closeInput();
-    }
+  // "+" → show menu
+  addBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    addBtn.classList.add('hidden');
+    addMenu.classList.remove('hidden');
   });
 
-  // Click outside to close
-  document.addEventListener('click', (e) => {
-    const panel = document.getElementById('stock-panel');
-    if (!panel.contains(e.target)) {
-      closeInput();
+  // Menu: Stock
+  document.getElementById('menu-stock').addEventListener('click', () => {
+    addMenu.classList.add('hidden');
+    inputWrap.classList.remove('hidden');
+    input.value = '';
+    input.focus();
+  });
+
+  // Menu: Note — show pad and focus editor
+  document.getElementById('menu-note').addEventListener('click', () => {
+    addMenu.classList.add('hidden');
+    addBtn.classList.remove('hidden');
+    notePad.classList.remove('hidden');
+    editor.focus();
+    // Place cursor at end of existing content
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  });
+
+  // Stock input: Enter to add, Escape to cancel
+  input.addEventListener('keydown', async e => {
+    if (e.key === 'Enter') {
+      const raw = input.value.trim();
+      closeAll();
+      if (raw) await addTicker(raw);
     }
+    if (e.key === 'Escape') closeAll();
+  });
+
+  // Click outside panel → close menu/input (note pad stays open)
+  document.addEventListener('click', e => {
+    const panel = document.getElementById('stock-panel');
+    if (!panel.contains(e.target)) closeAll();
   });
 }

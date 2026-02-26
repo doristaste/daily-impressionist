@@ -37,9 +37,17 @@
     Could not load artwork — please check your connection.
   </div>
 
-  <!-- Stock widget — top-right corner -->
+  <!-- Widget panel — top-right corner -->
   <div id="stock-panel" class="stock-panel">
     <div id="stock-list" class="stock-table"></div>
+    <div id="note-pad" class="note-pad hidden">
+      <div
+        id="note-editor"
+        class="note-editor"
+        contenteditable="true"
+        spellcheck="false"
+      ></div>
+    </div>
     <div id="stock-input-wrap" class="stock-input-wrap hidden">
       <input
         id="stock-input"
@@ -51,7 +59,11 @@
         spellcheck="false"
       />
     </div>
-    <button id="stock-add-btn" class="stock-add-btn" aria-label="Add stock ticker">+</button>
+    <div id="add-menu" class="add-menu hidden">
+      <button id="menu-stock" class="add-menu-item">Stock</button>
+      <button id="menu-note"  class="add-menu-item">Note</button>
+    </div>
+    <button id="stock-add-btn" class="stock-add-btn" aria-label="Add">+</button>
   </div>
 
   <!-- Optional API keys — copy config.example.js → config.js and fill in -->

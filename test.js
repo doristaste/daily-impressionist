@@ -220,6 +220,56 @@ test('parseYahooV8 — no prevClose (new listing)', () => {
 
 
 // =============================================================================
+//  Note widget helpers (pure logic extracted from script.js)
+// =============================================================================
+
+function classForLine(text) {
+  if (text.startsWith('# '))  return 'note-h1';
+  if (text.startsWith('## ')) return 'note-h2';
+  if (text.startsWith('- '))  return 'note-bullet';
+  return '';
+}
+
+function isTodoLine(text) {
+  return /^\/todo(\s|$)/i.test(text.trim());
+}
+
+function extractTodoText(raw) {
+  return raw.replace(/^\/todo\s*/i, '').trim();
+}
+
+test('classForLine (note markdown)', () => {
+  assert(classForLine('# Hello')    === 'note-h1',     '# → h1');
+  assert(classForLine('## World')   === 'note-h2',     '## → h2');
+  assert(classForLine('- item')     === 'note-bullet', '- → bullet');
+  assert(classForLine('normal')     === '',             'plain → no class');
+  assert(classForLine('#nospace')   === '',             '#nospace → not a heading (no space)');
+  assert(classForLine('##nospace')  === '',             '##nospace → not h2');
+  assert(classForLine('## ')        === 'note-h2',     '## alone → h2');
+  assert(classForLine('- ')         === 'note-bullet', '- alone → bullet');
+  assert(classForLine('  # indent') === '',             'indented # → not heading');
+});
+
+test('isTodoLine', () => {
+  assert(isTodoLine('/todo task')    === true,  '/todo with text');
+  assert(isTodoLine('/todo')         === true,  '/todo alone');
+  assert(isTodoLine('/TODO Task')    === true,  'case insensitive');
+  assert(isTodoLine('/todo  spaces') === true,  '/todo with extra space');
+  assert(isTodoLine('  /todo task')  === true,  'leading whitespace trimmed');
+  assert(isTodoLine('do something')  === false, 'regular text');
+  assert(isTodoLine('todo task')     === false, 'missing slash');
+  assert(isTodoLine('/todox')        === false, '/todox not a todo command');
+  assert(isTodoLine('')              === false, 'empty string');
+});
+
+test('extractTodoText', () => {
+  assert(extractTodoText('/todo buy milk')  === 'buy milk', 'extracts text');
+  assert(extractTodoText('/todo  spaced')   === 'spaced',   'trims extra space');
+  assert(extractTodoText('/todo')           === '',         'empty todo');
+  assert(extractTodoText('/TODO Call mom')  === 'Call mom', 'case insensitive');
+});
+
+// =============================================================================
 //  Summary
 // =============================================================================
 
