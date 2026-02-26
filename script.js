@@ -589,11 +589,24 @@ function handleSpaceKey(e) {
   const block = getCaretBlock();
   if (!block || block.classList.contains('note-todo')) return;
 
-  const text = block.textContent;
+  // .trim() because some browsers leave a trailing \n from a placeholder <br>
+  const text = block.textContent.trim();
+
+  // /todo + Space → immediate checkbox (no text yet)
+  if (/^\/todo$/i.test(text)) {
+    e.preventDefault();
+    convertToTodo(block);
+    debouncedSaveNote();
+    return;
+  }
+
+  // Heading / bullet prefix + Space → styled empty block
   let cls = null;
-  if      (text === '#')  cls = 'note-h1';
-  else if (text === '##') cls = 'note-h2';
-  else if (text === '-')  cls = 'note-bullet';
+  if      (text === '####') cls = 'note-h4';
+  else if (text === '###')  cls = 'note-h3';
+  else if (text === '##')   cls = 'note-h2';
+  else if (text === '#')    cls = 'note-h1';
+  else if (text === '-')    cls = 'note-bullet';
   if (!cls) return;
 
   e.preventDefault();
@@ -669,11 +682,12 @@ function initNoteEditor(editor) {
     }
 
     // Heading → next line should be normal text (strip class after browser creates div)
-    if (block.classList.contains('note-h1') || block.classList.contains('note-h2')) {
+    if (block.classList.contains('note-h1') || block.classList.contains('note-h2') ||
+        block.classList.contains('note-h3') || block.classList.contains('note-h4')) {
       setTimeout(() => {
         const newBlock = getCaretBlock();
         if (newBlock && newBlock !== block) {
-          newBlock.classList.remove('note-h1', 'note-h2');
+          newBlock.classList.remove('note-h1', 'note-h2', 'note-h3', 'note-h4');
         }
       }, 0);
     }

@@ -224,9 +224,12 @@ test('parseYahooV8 — no prevClose (new listing)', () => {
 // =============================================================================
 
 function classForLine(text) {
-  if (text.startsWith('# '))  return 'note-h1';
-  if (text.startsWith('## ')) return 'note-h2';
-  if (text.startsWith('- '))  return 'note-bullet';
+  // Check longer prefixes first — '### ' would falsely match '# ' otherwise
+  if (text.startsWith('#### ')) return 'note-h4';
+  if (text.startsWith('### '))  return 'note-h3';
+  if (text.startsWith('## '))   return 'note-h2';
+  if (text.startsWith('# '))    return 'note-h1';
+  if (text.startsWith('- '))    return 'note-bullet';
   return '';
 }
 
@@ -239,15 +242,23 @@ function extractTodoText(raw) {
 }
 
 test('classForLine (note markdown)', () => {
-  assert(classForLine('# Hello')    === 'note-h1',     '# → h1');
-  assert(classForLine('## World')   === 'note-h2',     '## → h2');
-  assert(classForLine('- item')     === 'note-bullet', '- → bullet');
-  assert(classForLine('normal')     === '',             'plain → no class');
-  assert(classForLine('#nospace')   === '',             '#nospace → not a heading (no space)');
-  assert(classForLine('##nospace')  === '',             '##nospace → not h2');
-  assert(classForLine('## ')        === 'note-h2',     '## alone → h2');
-  assert(classForLine('- ')         === 'note-bullet', '- alone → bullet');
-  assert(classForLine('  # indent') === '',             'indented # → not heading');
+  assert(classForLine('# Hello')      === 'note-h1',     '# → h1');
+  assert(classForLine('## World')     === 'note-h2',     '## → h2');
+  assert(classForLine('### Section')  === 'note-h3',     '### → h3');
+  assert(classForLine('#### Sub')     === 'note-h4',     '#### → h4');
+  assert(classForLine('- item')       === 'note-bullet', '- → bullet');
+  assert(classForLine('normal')       === '',             'plain → no class');
+  assert(classForLine('#nospace')     === '',             '#nospace → not a heading (no space)');
+  assert(classForLine('##nospace')    === '',             '##nospace → not h2');
+  assert(classForLine('###nospace')   === '',             '###nospace → not h3');
+  assert(classForLine('## ')          === 'note-h2',     '## alone → h2');
+  assert(classForLine('### ')         === 'note-h3',     '### alone → h3');
+  assert(classForLine('#### ')        === 'note-h4',     '#### alone → h4');
+  assert(classForLine('- ')           === 'note-bullet', '- alone → bullet');
+  assert(classForLine('  # indent')   === '',             'indented # → not heading');
+  // Prefix ordering: ### must not match # or ##
+  assert(classForLine('### Title')    === 'note-h3',     '### not confused with #');
+  assert(classForLine('#### Title')   === 'note-h4',     '#### not confused with ##');
 });
 
 test('isTodoLine', () => {
