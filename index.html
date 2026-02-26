@@ -37,6 +37,25 @@
     Could not load artwork — please check your connection.
   </div>
 
+  <!-- Stock widget — top-right corner -->
+  <div id="stock-panel" class="stock-panel">
+    <div id="stock-list" class="stock-list"></div>
+    <div id="stock-input-wrap" class="stock-input-wrap hidden">
+      <input
+        id="stock-input"
+        class="stock-input"
+        type="text"
+        placeholder="AAPL or 0700.HK"
+        maxlength="12"
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
+    <button id="stock-add-btn" class="stock-add-btn" aria-label="Add stock ticker">+</button>
+  </div>
+
+  <!-- Optional API keys — copy config.example.js → config.js and fill in -->
+  <script src="config.js" onerror="void 0"></script>
   <script src="script.js"></script>
 </body>
 </html>

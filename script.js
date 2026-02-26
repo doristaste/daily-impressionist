@@ -117,6 +117,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Set a random Nippon gallery tint immediately — before anything else loads.
   document.documentElement.style.setProperty('--bg-color', pickRandom(NIPPON_COLORS));
 
+  // Boot the stock widget independently of the painting pipeline.
+  initStockWidget();
+
   const { ready } = await chrome.storage.local.get('ready');
 
   if (ready?.dataUrl) {
@@ -340,4 +343,255 @@ function renderArtwork(artwork) {
 function showError() {
   document.getElementById('loader').classList.add('hidden');
   document.getElementById('error-msg').classList.remove('hidden');
+}
+
+
+// =============================================================================
+//  Stock Widget (Pro)
+//  US stocks via Polygon.io; HK stocks via Yahoo Finance / RapidAPI.
+//  API keys are read from window.EXTENSION_CONFIG (config.js, gitignored).
+//  Without keys the widget is still interactive but shows "—" for quotes.
+// =============================================================================
+
+const POLYGON_KEY  = window.EXTENSION_CONFIG?.POLYGON_KEY  ?? '';
+const RAPIDAPI_KEY = window.EXTENSION_CONFIG?.RAPIDAPI_KEY ?? '';
+
+// ─── Storage key ──────────────────────────────────────────────────────────────
+
+const STOCK_STORE_KEY = 'stockWidgets';
+
+async function loadSavedTickers() {
+  const { stockWidgets } = await chrome.storage.local.get(STOCK_STORE_KEY);
+  return Array.isArray(stockWidgets) ? stockWidgets : [];
+}
+
+async function saveTickerList(list) {
+  await chrome.storage.local.set({ [STOCK_STORE_KEY]: list });
+}
+
+// ─── Ticker helpers ────────────────────────────────────────────────────────────
+
+function isHKTicker(raw) {
+  return /^\d{1,5}(\.HK)?$/i.test(raw.trim());
+}
+
+function normalizeHkTicker(raw) {
+  const digits = raw.trim().replace(/\.HK$/i, '').replace(/^0+/, '') || '0';
+  return digits.padStart(4, '0') + '.HK';
+}
+
+function normalizeTicker(raw) {
+  return isHKTicker(raw) ? normalizeHkTicker(raw) : raw.trim().toUpperCase();
+}
+
+// ─── API calls ─────────────────────────────────────────────────────────────────
+
+async function fetchUSStock(ticker) {
+  if (!POLYGON_KEY) return null;
+
+  const [tradeRes, prevRes] = await Promise.all([
+    fetch(`https://api.polygon.io/v2/last/trade/${ticker}?apiKey=${POLYGON_KEY}`),
+    fetch(`https://api.polygon.io/v2/aggs/ticker/${ticker}/prev?adjusted=true&apiKey=${POLYGON_KEY}`),
+  ]);
+
+  const tradeJson = await tradeRes.json();
+  const prevJson  = await prevRes.json();
+
+  const price     = tradeJson?.results?.p;
+  const prevClose = prevJson?.results?.[0]?.c;
+
+  if (price == null) return null;
+
+  const change    = prevClose != null ? ((price - prevClose) / prevClose) * 100 : null;
+  const timestamp = tradeJson?.results?.t
+    ? new Date(tradeJson.results.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  return { ticker, price, change, timestamp };
+}
+
+async function fetchHKStock(ticker) {
+  if (!RAPIDAPI_KEY) return null;
+
+  const res = await fetch(
+    `https://yh-finance.p.rapidapi.com/market/v2/get-quotes?region=HK&symbols=${encodeURIComponent(ticker)}`,
+    {
+      headers: {
+        'x-rapidapi-host': 'yh-finance.p.rapidapi.com',
+        'x-rapidapi-key':  RAPIDAPI_KEY,
+      },
+    }
+  );
+  const json = await res.json();
+  const q    = json?.quoteResponse?.result?.[0];
+  if (!q) return null;
+
+  const price     = q.regularMarketPrice;
+  const change    = q.regularMarketChangePercent;
+  const timestamp = q.regularMarketTime
+    ? new Date(q.regularMarketTime * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  return { ticker, price, change, timestamp };
+}
+
+async function fetchStockQuote(ticker) {
+  try {
+    return isHKTicker(ticker)
+      ? await fetchHKStock(ticker)
+      : await fetchUSStock(ticker);
+  } catch {
+    return null;
+  }
+}
+
+// ─── Card DOM helpers ──────────────────────────────────────────────────────────
+
+function formatPrice(price) {
+  if (price == null) return '—';
+  return price >= 100
+    ? price.toFixed(2)
+    : price.toFixed(3);
+}
+
+function formatChange(change) {
+  if (change == null) return '—';
+  const sign = change >= 0 ? '+' : '';
+  return `${sign}${change.toFixed(2)}%`;
+}
+
+function buildStockCard(ticker) {
+  const card = document.createElement('div');
+  card.className  = 'stock-card';
+  card.dataset.ticker = ticker;
+
+  const tickerEl = document.createElement('span');
+  tickerEl.className   = 'stock-ticker';
+  tickerEl.textContent = ticker;
+
+  const priceEl = document.createElement('span');
+  priceEl.className   = 'stock-price';
+  priceEl.textContent = '…';
+
+  const changeEl = document.createElement('span');
+  changeEl.className   = 'stock-change neutral';
+  changeEl.textContent = '…';
+
+  const removeBtn = document.createElement('button');
+  removeBtn.className   = 'stock-remove';
+  removeBtn.textContent = '✕';
+  removeBtn.title       = 'Remove';
+  removeBtn.addEventListener('click', () => removeTicker(ticker));
+
+  card.append(tickerEl, priceEl, changeEl, removeBtn);
+  return card;
+}
+
+function upsertCard(ticker, data) {
+  const list = document.getElementById('stock-list');
+  let card   = list.querySelector(`[data-ticker="${CSS.escape(ticker)}"]`);
+
+  if (!card) {
+    card = buildStockCard(ticker);
+    list.appendChild(card);
+  }
+
+  const priceEl  = card.querySelector('.stock-price');
+  const changeEl = card.querySelector('.stock-change');
+
+  if (!data) {
+    priceEl.textContent  = '—';
+    changeEl.textContent = 'no key';
+    changeEl.className   = 'stock-change neutral';
+    return;
+  }
+
+  priceEl.textContent  = formatPrice(data.price);
+  changeEl.textContent = formatChange(data.change);
+  changeEl.className   = 'stock-change ' + (
+    data.change == null ? 'neutral' :
+    data.change >  0    ? 'positive' : 'negative'
+  );
+}
+
+// ─── Ticker add/remove ─────────────────────────────────────────────────────────
+
+async function addTicker(raw) {
+  const ticker  = normalizeTicker(raw);
+  if (!ticker)  return;
+
+  const list = await loadSavedTickers();
+  if (list.includes(ticker)) return;    // already tracked
+
+  list.push(ticker);
+  await saveTickerList(list);
+
+  upsertCard(ticker, null);
+  const data = await fetchStockQuote(ticker);
+  upsertCard(ticker, data);
+}
+
+async function removeTicker(ticker) {
+  const list = await loadSavedTickers();
+  const updated = list.filter(t => t !== ticker);
+  await saveTickerList(updated);
+
+  const card = document.getElementById('stock-list')
+    .querySelector(`[data-ticker="${CSS.escape(ticker)}"]`);
+  card?.remove();
+}
+
+async function refreshAllTickers() {
+  const list = await loadSavedTickers();
+  await Promise.all(list.map(async ticker => {
+    const data = await fetchStockQuote(ticker);
+    upsertCard(ticker, data);
+  }));
+}
+
+// ─── Init ──────────────────────────────────────────────────────────────────────
+
+async function initStockWidget() {
+  // Render saved tickers immediately (with placeholder prices)
+  const saved = await loadSavedTickers();
+  saved.forEach(t => upsertCard(t, null));
+
+  // Then fetch live quotes
+  if (saved.length) refreshAllTickers();
+
+  // Refresh every 60 s
+  setInterval(refreshAllTickers, 60_000);
+
+  // "+" button toggles input
+  const addBtn   = document.getElementById('stock-add-btn');
+  const inputWrap = document.getElementById('stock-input-wrap');
+  const input    = document.getElementById('stock-input');
+
+  addBtn.addEventListener('click', () => {
+    inputWrap.classList.toggle('hidden');
+    if (!inputWrap.classList.contains('hidden')) {
+      input.value = '';
+      input.focus();
+    }
+  });
+
+  // Submit on Enter
+  input.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      const raw = input.value.trim();
+      if (raw) await addTicker(raw);
+      inputWrap.classList.add('hidden');
+    }
+    if (e.key === 'Escape') {
+      inputWrap.classList.add('hidden');
+    }
+  });
+
+  // Click outside to close
+  document.addEventListener('click', (e) => {
+    const panel = document.getElementById('stock-panel');
+    if (!panel.contains(e.target)) {
+      inputWrap.classList.add('hidden');
+    }
+  });
 }

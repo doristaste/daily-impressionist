@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Daily Impressionist",
-  "version": "2.0",
-  "description": "Replace your new tab with a random Impressionist masterpiece from the world's greatest museums.",
+  "name": "Daily Impressionist Pro",
+  "version": "3.0",
+  "description": "Replace your new tab with a random Impressionist masterpiece — plus live stock quotes.",
   "chrome_url_overrides": {
     "newtab": "index.html"
   },
@@ -15,6 +15,8 @@
     "https://api.vam.ac.uk/*",
     "https://framemark.vam.ac.uk/*",
     "https://openaccess-api.clevelandart.org/*",
-    "https://openaccess-cdn.clevelandart.org/*"
+    "https://openaccess-cdn.clevelandart.org/*",
+    "https://api.polygon.io/*",
+    "https://yh-finance.p.rapidapi.com/*"
   ]
 }

@@ -160,3 +160,133 @@ body {
 .hidden {
   display: none !important;
 }
+
+/* ─── Stock widget — top-right ───────────────────────────────── */
+.stock-panel {
+  position: fixed;
+  top: 32px;
+  right: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  z-index: 10;
+}
+
+.stock-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+/* Each stock card — glassmorphism */
+.stock-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: default;
+  min-width: 160px;
+}
+
+.stock-card:hover .stock-remove {
+  opacity: 0.6;
+}
+
+.stock-ticker {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+  flex: 1;
+}
+
+.stock-price {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.90);
+}
+
+.stock-change {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 0.72rem;
+  font-weight: 300;
+  min-width: 52px;
+  text-align: right;
+}
+
+.stock-change.positive { color: #6fcf97; }
+.stock-change.negative { color: #eb5757; }
+.stock-change.neutral  { color: rgba(255, 255, 255, 0.45); }
+
+.stock-remove {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.80);
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0 0 0 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* "+" add button */
+.stock-add-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.40);
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.stock-add-btn:hover {
+  background: rgba(255, 255, 255, 0.55);
+  transform: scale(1.08);
+}
+
+/* Ticker input bar */
+.stock-input-wrap {
+  width: 180px;
+}
+
+.stock-input {
+  width: 100%;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  outline: none;
+}
+
+.stock-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.stock-input:focus {
+  border-color: rgba(255, 255, 255, 0.50);
+  background: rgba(255, 255, 255, 0.18);
+}
