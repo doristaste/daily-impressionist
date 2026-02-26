@@ -175,7 +175,7 @@ body {
 
 /* Unified dark table — only visible when it has rows */
 .stock-table:not(:empty) {
-  background: rgba(10, 10, 10, 0.72);
+  background: rgba(10, 10, 10, 0.55);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   border: 1px solid rgba(255, 255, 255, 0.07);
@@ -276,7 +276,7 @@ body {
   width: 100%;
   padding: 7px 14px;
   border-radius: 10px;
-  background: rgba(10, 10, 10, 0.72);
+  background: rgba(10, 10, 10, 0.55);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   border: 1px solid rgba(255, 255, 255, 0.12);
